@@ -1,6 +1,6 @@
 # Electron + Vite + React App
 
-A modern, full-stack desktop application built with Electron, React, Vite, and TypeScript. Features SQLite database integration, Express API server, secure file operations, and a beautiful glass morphism UI.
+A modern, full-stack desktop application built with Electron, React, Vite, and TypeScript. Features SQLite database integration, AceBase NoSQL database, Express API server, secure file operations, and a beautiful glass morphism UI.
 
 ![Electron + Vite + React](https://img.shields.io/badge/Electron-28.1.0-47848F?style=for-the-badge&logo=electron)
 ![React](https://img.shields.io/badge/React-18.2.0-61DAFB?style=for-the-badge&logo=react)
@@ -18,7 +18,8 @@ A modern, full-stack desktop application built with Electron, React, Vite, and T
 - **Tailwind CSS** - Utility-first CSS with custom design system
 
 ### 🗄️ **Database Integration**
-- **SQLite3** - Local database with full CRUD operations
+- **SQLite3** - Local relational database with full CRUD operations
+- **AceBase NoSQL** - Document-based NoSQL database with hierarchical paths
 - **Native Module Support** - Properly configured for cross-platform builds
 - **IPC Database Bridge** - Secure communication between processes
 - **Migration Support** - Database schema management
@@ -61,20 +62,19 @@ your-project/
 ├── .eslintrc.cjs              # ESLint configuration
 ├── index.html                  # HTML template
 ├── .gitignore                 # Git ignore rules
-├── electron-builder.yml       # Build configuration
 ├── scripts/
 │   └── build_native.js        # Native module build script
-├── build/
-│   └── entitlements.mac.plist # macOS entitlements
 ├── electron/
 │   ├── main.ts                # Main Electron process
 │   ├── preload.ts             # Secure IPC bridge
 │   ├── database.ts            # SQLite database integration
+│   ├── acebase-db.ts          # AceBase NoSQL database integration
 │   ├── express-server.ts      # Express API server
 │   └── tsconfig.json          # TypeScript config (main process)
 ├── src/
 │   ├── components/
-│   │   ├── DatabaseDemo.tsx   # Database operations demo
+│   │   ├── DatabaseDemo.tsx   # SQLite database operations demo
+│   │   ├── AceBaseDemo.tsx    # AceBase NoSQL operations demo
 │   │   ├── FileOperations.tsx # File system demo
 │   │   └── ExpressServerDemo.tsx # API server demo
 │   ├── types/
@@ -147,7 +147,7 @@ The application will open automatically with hot reload enabled.
 ### Main Process
 The main process (`electron/main.ts`) handles:
 - Window management and lifecycle
-- Database initialization
+- Database initialization (SQLite and AceBase)
 - Express server startup
 - Native system integration
 - IPC handler registration
@@ -166,9 +166,43 @@ Secure communication via preload script:
 - Error handling patterns
 - Event cleanup management
 
+## 🔥 AceBase NoSQL Database
+
+### Features
+- **Document-based storage** with hierarchical paths
+- **Real-time operations** (get, set, push, update, remove)
+- **Query capabilities** with filtering and ordering
+- **JSON-native data types** and arrays
+- **Auto-generated unique keys** for collections
+
+### Usage Examples
+```typescript
+// Get data from a path
+const result = await window.electronAPI.acebaseGet('users/demo-user')
+
+// Set data at a path
+await window.electronAPI.acebaseSet('users/new-user', {
+  name: 'John Doe',
+  email: 'john@example.com',
+  createdAt: Date.now()
+})
+
+// Push data to a collection (auto-generates key)
+const result = await window.electronAPI.acebasePush('users', {
+  name: 'Jane Smith',
+  email: 'jane@example.com'
+})
+
+// Query data with options
+const result = await window.electronAPI.acebaseQuery('users', {
+  filter: { status: 'active' },
+  limit: 10
+})
+```
+
 ## 🗄️ Database Schema
 
-### Users Table
+### SQLite Users Table
 ```sql
 CREATE TABLE users (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -178,13 +212,34 @@ CREATE TABLE users (
 );
 ```
 
-### Settings Table
+### SQLite Settings Table
 ```sql
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,
   value TEXT,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+```
+
+### AceBase Structure
+```
+myapp/
+├── users/
+│   ├── auto-generated-key/
+│   │   ├── name: "Demo User"
+│   │   ├── email: "demo@example.com"
+│   │   └── status: "active"
+│   └── demo-user-fixed/
+│       ├── name: "Fixed Demo User"
+│       └── email: "fixed@example.com"
+├── settings/
+│   ├── theme: "dark"
+│   ├── language: "en"
+│   └── notifications: true
+└── demo/
+    └── test-value/
+        ├── testValue: "AceBase demo test..."
+        └── timestamp: 1234567890
 ```
 
 ## 🌐 API Endpoints
@@ -198,6 +253,37 @@ The embedded Express server provides:
 - `GET /api/settings` - Get application settings
 - `PUT /api/settings/:key` - Update setting
 - `POST /api/upload` - File upload endpoint
+
+## ⚡ Hot Module Replacement (HMR)
+
+### Features
+- **Instant UI Updates** - Changes in React components reflect immediately
+- **State Preservation** - Component state maintained during reloads
+- **Fast Refresh** - Preserves component state while updating code
+- **Main Process Reload** - Automatic reload when main process files change
+- **Preload Script Reload** - Updates to preload scripts are automatically applied
+
+### How It Works
+1. Vite watches for file changes in the renderer process
+2. Changed modules are hot-replaced without full page reload
+3. Electron listens for build changes and reloads windows when needed
+4. State is preserved through React Fast Refresh mechanisms
+
+### Configuration
+HMR is configured in `electron.vite.config.ts`:
+```typescript
+renderer: {
+  server: {
+    port: 5174,
+    strictPort: true,
+    host: 'localhost',
+    hmr: {
+      protocol: 'ws',
+      host: 'localhost',
+    }
+  }
+}
+```
 
 ## 🎨 Theming
 
@@ -247,7 +333,7 @@ The project supports building for:
 - **Linux**: AppImage, DEB, RPM, Snap (x64, arm64)
 
 ### Native Module Handling
-- SQLite3 bindings included
+- SQLite3 and AceBase bindings included
 - Platform-specific configurations
 - Code signing support
 - Auto-updater integration
@@ -322,6 +408,7 @@ If you encounter any issues or have questions:
 - [Vite](https://vitejs.dev/) - Build tool
 - [Tailwind CSS](https://tailwindcss.com/) - CSS framework
 - [SQLite](https://www.sqlite.org/) - Database engine
+- [AceBase](https://www.npmjs.com/package/acebase) - NoSQL database
 
 ## 🔄 Roadmap
 
